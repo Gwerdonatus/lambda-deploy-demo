@@ -4,8 +4,8 @@
 ![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-A lightweight **AWS Lambda deployment automation script** built with Python and Boto3.
-This tool helps developers quickly **create or update** Lambda functions directly from a `.zip` package — perfect for small teams, personal projects, or CI/CD pipelines.
+A lightweight **AWS Lambda deployment automation tool** built with Python and Boto3.
+It helps developers quickly **create or update** Lambda functions directly from a `.zip` package — perfect for small teams, personal projects, or CI/CD pipelines.
 
 ---
 
@@ -13,9 +13,11 @@ This tool helps developers quickly **create or update** Lambda functions directl
 
 * 📦 Deploys or updates AWS Lambda functions automatically.
 * ⚙️ Supports custom runtime, memory size, and timeout settings.
+* 🔒 Reads config from **environment variables** (safer than plain JSON).
 * 🪶 Minimal setup — just Python, Boto3, and your AWS credentials.
 * 🧱 Clean, reusable structure you can plug into your own automation pipelines.
-* 🧪 Includes a **dry-run mode** for testing locally without touching AWS.
+* 🧪 Includes **dry-run mode** and **unit tests** (mocked Boto3).
+* 🧰 Includes **ZIP build script** for packaging your Lambda automatically.
 
 ---
 
@@ -23,13 +25,14 @@ This tool helps developers quickly **create or update** Lambda functions directl
 
 The script:
 
-1. Reads your packaged Lambda code (`lambda.zip`).
-2. Connects to AWS Lambda via Boto3.
-3. Checks if the function exists:
+1. Reads your packaged Lambda code (`lambda.zip`) or builds it from source.
+2. Loads configuration from environment variables or `config.json`.
+3. Connects to AWS Lambda via Boto3.
+4. Checks if the function exists:
 
    * If yes → updates the code.
    * If no → creates a new function.
-4. Returns the function ARN or an error message.
+5. Returns the function ARN or an error message.
 
 ---
 
@@ -41,9 +44,9 @@ The script:
 * AWS CLI configured with credentials (`aws configure`)
 * Boto3 installed
 
-  ```bash
-  pip install boto3
-  ```
+```bash
+pip install boto3
+```
 
 ---
 
@@ -63,7 +66,10 @@ source venv/bin/activate  # (Mac/Linux)
 # 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Test in dry-run mode
+# 4. Build ZIP package (optional)
+python build_zip.py
+
+# 5. Test in dry-run mode
 python deploy_lambda.py --dry-run
 ```
 
@@ -71,7 +77,19 @@ python deploy_lambda.py --dry-run
 
 ## 🧩 Configuration
 
-You can customize your deployment settings in the `config.json` file:
+You can configure via **environment variables** (recommended):
+
+```bash
+export FUNCTION_NAME=my-test-function
+export ROLE_ARN=arn:aws:iam::123456789012:role/lambda-role
+export HANDLER=lambda_function.lambda_handler
+export RUNTIME=python3.9
+export TIMEOUT=30
+export MEMORY_SIZE=128
+export ZIP_FILE=lambda.zip
+```
+
+Or use a fallback `config.json`:
 
 ```json
 {
@@ -83,6 +101,46 @@ You can customize your deployment settings in the `config.json` file:
   "timeout": 30,
   "memory_size": 128
 }
+```
+
+---
+
+## 📦 Example Lambda Function (`lambda_function.py`)
+
+```python
+def lambda_handler(event, context):
+    message = "Hello from Lambda Deployment Automation!"
+    print(message)
+    return {
+        "statusCode": 200,
+        "body": message
+    }
+```
+
+---
+
+## 🧰 Example Build Script (`build_zip.py`)
+
+```python
+import zipfile
+import os
+
+def build_zip(zip_name="lambda.zip", source_files=None):
+    if source_files is None:
+        source_files = ["lambda_function.py"]
+
+    with zipfile.ZipFile(zip_name, "w") as zf:
+        for file in source_files:
+            if os.path.exists(file):
+                zf.write(file)
+                print(f"✅ Added {file}")
+            else:
+                print(f"⚠️ File not found: {file}")
+
+    print(f"🎯 Build complete: {zip_name}")
+
+if __name__ == "__main__":
+    build_zip()
 ```
 
 ---
@@ -100,18 +158,46 @@ You can customize your deployment settings in the `config.json` file:
 
 ---
 
+## 🧪 Running Unit Tests
+
+This project includes a simple test suite using **unittest** and **moto** (to mock AWS Lambda).
+
+```bash
+pip install moto pytest
+pytest
+```
+
+The CI workflow (`.github/workflows/ci.yml`) automatically runs tests and dry-run builds before publishing.
+
+---
+
 ## 🔐 Security Notes
 
 * Never commit your AWS credentials to GitHub.
 * Use **IAM roles** with least privilege access.
 * In CI/CD pipelines, use **encrypted secrets** for AWS keys.
+* Prefer **environment variables** for sensitive config values.
+
+---
+
+## 🏷️ Release
+
+Version **v1.0** marks the first stable release of the Lambda Deployment Automation script —
+including ZIP build support, environment variable configuration, and CI test integration.
+
+To create a tagged release manually:
+
+```bash
+git tag -a v1.0 -m "Initial stable release"
+git push origin v1.0
+```
 
 ---
 
 ## 🤝 Contributing
 
 Pull requests and issues are welcome!
-If you’d like to improve or extend the script (e.g., add multi-function deployment, logs, or tests), open a PR.
+If you’d like to improve or extend the script (e.g., add multi-function deployment, better logs, or more tests), open a PR.
 
 ---
 
